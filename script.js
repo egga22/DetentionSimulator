@@ -183,8 +183,18 @@ const dialoguePrompts = [
   { key: 'hi', label: 'Hi' },
   { key: 'name', label: "What's your name?" },
   { key: 'offense', label: 'What did you do?' },
+  { key: 'hobby', label: 'What do you do for fun?' },
+  { key: 'rumor', label: 'Heard any rumors?' },
+  { key: 'snack', label: 'Favorite snack?' },
   { key: 'time', label: 'How long have you been here?' },
   { key: 'bye', label: 'See you later.' },
+];
+
+const teacherDialoguePrompts = [
+  { key: 'status', label: 'Can I stand up?' },
+  { key: 'time', label: 'How much time is left?' },
+  { key: 'advice', label: 'Any advice?' },
+  { key: 'leave', label: 'Can I leave now?' },
 ];
 
 const keys = new Set();
@@ -197,6 +207,39 @@ let teacherWarningStartedAt = null;
 let teacherAskedToSit = false;
 let timerPausedByTeacher = false;
 let activeNpcId = null;
+let talkingToTeacher = false;
+let announcedDismissal = false;
+
+const npcReplyLines = {
+  hi: [
+    'Hey. Try not to make eye contact with the teacher.',
+    'Yo. Detention buddies, apparently.',
+    'Hi. I swear I am innocent-ish.',
+  ],
+  name: ['I\'m {name}.', '{name}. Seat C troublemaker.', '{name}. Nice to meet you in the worst place.'],
+  offense: ['{offense}. Worth it though.', '{offense}. I regret nothing.', '{offense}. It was art, not chaos.'],
+  hobby: [
+    'I build tiny robots out of old calculators.',
+    'Mostly speedrunning homework right before class.',
+    'Skateboarding. Poorly, but enthusiastically.',
+  ],
+  rumor: [
+    'Rumor is someone replaced the bell with a kazoo recording.',
+    'I heard Coach fell asleep during the fire drill lecture.',
+    'Someone said the principal has a secret snack drawer.',
+  ],
+  snack: ['Spicy chips. No contest.', 'Chocolate-covered pretzels.', 'Frozen grapes from the cafeteria.'],
+  time: [
+    'Feels like forever... but probably like 20 minutes.',
+    'Long enough to memorize every crack in this desk.',
+    'Not sure. Time moves weird in detention.',
+  ],
+  bye: [
+    'Later. Pretend we\'re studying if the teacher looks over.',
+    'See you. If we survive this hour.',
+    'Bye. Good luck not getting caught talking.',
+  ],
+};
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(value, max));
@@ -265,15 +308,16 @@ function canTalkToNpc(npc) {
 }
 
 function getNpcReply(npc, promptKey) {
-  const replies = {
-    hi: `${npc.name}: Hey. Try not to make eye contact with the teacher.`,
-    name: `${npc.name}: I'm ${npc.name}.`,
-    offense: `${npc.name}: ${npc.offense}. Worth it though.`,
-    time: `${npc.name}: Feels like forever... but probably like 20 minutes.`,
-    bye: `${npc.name}: Later. Pretend we're studying if the teacher looks over.`,
-  };
+  const options = npcReplyLines[promptKey];
+  if (!options || options.length === 0) {
+    return `${npc.name} shrugs.`;
+  }
 
-  return replies[promptKey] || `${npc.name} shrugs.`;
+  const index = Math.floor(Math.random() * options.length);
+  const line = options[index]
+    .replaceAll('{name}', npc.name)
+    .replaceAll('{offense}', npc.offense);
+  return `${npc.name}: ${line}`;
 }
 
 function clearDialogueOptions() {
@@ -283,6 +327,7 @@ function clearDialogueOptions() {
 function showDialogueOptionsForNpc(npc) {
   clearDialogueOptions();
   activeNpcId = npc.id;
+  talkingToTeacher = false;
 
   for (const prompt of dialoguePrompts) {
     const button = document.createElement('button');
@@ -299,8 +344,47 @@ function showDialogueOptionsForNpc(npc) {
   }
 }
 
+function getTeacherReply(promptKey) {
+  const remaining = getMsRemaining();
+  const isDone = remaining <= 0;
+
+  const replies = {
+    status: isDone
+      ? 'Teacher: Detention is over. You may stand and head out when ready.'
+      : 'Teacher: You may stand and stretch, just stay in the room and keep it calm.',
+    time: `Teacher: ${isDone ? 'Time is up.' : `${formatRemaining(remaining)} left.`}`,
+    advice: 'Teacher: Own your mistakes, learn from them, and Monday will be easier.',
+    leave: isDone
+      ? 'Teacher: Yes. You are dismissed. Door is open.'
+      : 'Teacher: Not yet. Wait for the timer, then you are free to go.',
+  };
+
+  return replies[promptKey] || 'Teacher: Back to your seat, please.';
+}
+
+function showDialogueOptionsForTeacher() {
+  clearDialogueOptions();
+  activeNpcId = null;
+  talkingToTeacher = true;
+
+  for (const prompt of teacherDialoguePrompts) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'dialogue-option-btn';
+    button.textContent = prompt.label;
+    button.addEventListener('click', () => {
+      if (!talkingToTeacher) {
+        return;
+      }
+      setDialogue(getTeacherReply(prompt.key));
+    });
+    dialogueOptions.appendChild(button);
+  }
+}
+
 function closeNpcDialogue() {
   activeNpcId = null;
+  talkingToTeacher = false;
   clearDialogueOptions();
 }
 
@@ -352,7 +436,7 @@ function standUpFromDesk() {
   teacherWarningStartedAt = Date.now();
   teacherAskedToSit = false;
   closeNpcDialogue();
-  setDialogue('You stand up. Move closer to other desks to talk.');
+  setDialogue('You stand up. You can move around and chat while detention runs.');
 }
 
 function handleTeacherBehavior(nowMs) {
@@ -368,14 +452,7 @@ function handleTeacherBehavior(nowMs) {
 
   if (!teacherAskedToSit && awayDuration >= 400) {
     teacherAskedToSit = true;
-    setDialogue('Teacher: Sit back down right now.');
-  }
-
-  if (!timerPausedByTeacher && awayDuration >= 3500) {
-    timerPausedByTeacher = true;
-    pauseStartedAt = nowMs;
-    statusText.textContent = 'Status: Timer paused by teacher. Sit back down to resume.';
-    setDialogue('Teacher: Timer is paused until you are back in your seat.');
+    setDialogue('Teacher: Stay respectful, but you may stand if you need to.');
   }
 }
 
@@ -410,7 +487,28 @@ function handleDoorInteraction() {
 }
 
 function tryTalkToNpcAt(canvasX, canvasY) {
+  const teacherHeadX = teacher.x + teacher.width / 2;
+  const teacherHeadY = teacher.y + 10;
+  const clickedTeacher = distanceBetween(canvasX, canvasY, teacherHeadX, teacherHeadY) <= 16;
+  if (clickedTeacher) {
+    const playerCenterX = player.x + player.width / 2;
+    const playerCenterY = player.y + player.height / 2;
+    const withinTeacherRange = distanceBetween(playerCenterX, playerCenterY, teacherHeadX, teacherHeadY) <= 150;
+    if (!withinTeacherRange) {
+      setDialogue('Move closer to the teacher to talk.');
+      closeNpcDialogue();
+      return;
+    }
+
+    setDialogue('Teacher: Yes? Keep it brief.');
+    showDialogueOptionsForTeacher();
+    return;
+  }
+
   for (const npc of npcs) {
+    if (npc.leftRoom) {
+      continue;
+    }
     const head = getNpcHeadPosition(npc);
     const clickedHead = distanceBetween(canvasX, canvasY, head.x, head.y) <= npc.headRadius + 4;
 
@@ -434,6 +532,39 @@ function tryTalkToNpcAt(canvasX, canvasY) {
   }
 
   closeNpcDialogue();
+}
+
+function updateNpcDismissal(deltaTime) {
+  if (!announcedDismissal && getMsRemaining() <= 0) {
+    announcedDismissal = true;
+    setDialogue('Teacher: Detention is over. Everyone is dismissed.');
+  }
+
+  const exitX = door.x + door.width / 2 - 10;
+  const exitY = door.y + door.height / 2 - 14;
+
+  for (const npc of npcs) {
+    if (npc.leftRoom || getMsRemaining() > 0) {
+      continue;
+    }
+
+    const speed = 150;
+    const toExitX = exitX - npc.x;
+    const toExitY = exitY - npc.y;
+    const distance = Math.hypot(toExitX, toExitY);
+
+    if (distance <= 10) {
+      npc.leftRoom = true;
+      if (activeNpcId === npc.id) {
+        closeNpcDialogue();
+      }
+      continue;
+    }
+
+    const step = speed * deltaTime;
+    npc.x += (toExitX / distance) * Math.min(step, distance);
+    npc.y += (toExitY / distance) * Math.min(step, distance);
+  }
 }
 
 function moveWithCollision(deltaX, deltaY) {
@@ -536,6 +667,10 @@ function drawTeacher() {
 }
 
 function drawNpc(npc) {
+  if (npc.leftRoom) {
+    return;
+  }
+
   const isActive = npc.id === activeNpcId;
 
   ctx.fillStyle = npc.color;
@@ -602,6 +737,7 @@ function tick(now) {
 
   updatePlayer(deltaTime);
   handleTeacherBehavior(Date.now());
+  updateNpcDismissal(deltaTime);
 
   const remaining = getMsRemaining();
   const pausedText = timerPausedByTeacher ? ' (Paused)' : '';
