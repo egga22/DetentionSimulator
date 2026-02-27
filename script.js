@@ -68,19 +68,19 @@ function distanceToDoor() {
 
 function handleDoorInteraction() {
   if (distanceToDoor() > door.interactionRadius) {
-    setDialogue("The hall is quiet... but you're nowhere near the door.");
+    setDialogue("");
     return;
   }
 
   const remaining = getMsRemaining();
   if (remaining > 0) {
-    setDialogue(`The monitor says: "Not yet. ${formatRemaining(remaining)} left in detention."`);
+    setDialogue("You are not allowed to leave detention yet.");
     return;
   }
 
   detentionReleased = true;
   statusText.textContent = 'Status: Detention complete. You are free to leave!';
-  setDialogue('The door creaks open. Freedom at last...');
+  setDialogue('You leave detention. You can finally hang out with your friends.');
 }
 
 function updatePlayer(deltaTime) {
