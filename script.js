@@ -1,6 +1,7 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const dialogueText = document.getElementById('dialogueText');
+const dialogueOptions = document.getElementById('dialogueOptions');
 const timeRemainingLabel = document.getElementById('timeRemaining');
 const statusText = document.getElementById('statusText');
 
@@ -29,6 +30,7 @@ const desks = [];
 for (let row = 0; row < deskLayout.rows; row += 1) {
   for (let col = 0; col < deskLayout.columns; col += 1) {
     desks.push({
+      id: `desk-${row}-${col}`,
       row,
       col,
       x: deskLayout.startX + col * deskLayout.spacingX,
@@ -73,6 +75,46 @@ const teacher = {
   y: teacherDesk.y + teacherDesk.height + 2,
 };
 
+const npcProfiles = [
+  { name: 'Mia', offense: 'Passing notes all class', color: '#d97fa8' },
+  { name: 'Noah', offense: 'Setting 14 alarms to ring in math', color: '#83a4ff' },
+  { name: 'Zoe', offense: 'Launching a paper airplane at the principal', color: '#8fd8b8' },
+  { name: 'Jamal', offense: 'Sneaking chips into chemistry', color: '#ffb880' },
+  { name: 'Lena', offense: 'Rewriting the class anthem as a rap battle', color: '#f3d37f' },
+  { name: 'Ivan', offense: 'Hacking the bell to dismiss early', color: '#91d6ff' },
+  { name: 'Ruby', offense: 'Putting glitter in the class fan', color: '#e0a1ff' },
+  { name: 'Eli', offense: 'Trading fake hall passes', color: '#95e388' },
+  { name: 'Kai', offense: 'Bringing a pet frog to history', color: '#ff9f9f' },
+  { name: 'Nora', offense: 'Drawing moustaches on textbook photos', color: '#9cd8d0' },
+  { name: 'Owen', offense: 'Starting a pencil drumming battle', color: '#c8b6ff' },
+];
+
+const npcs = desks
+  .filter((desk) => desk !== playerDesk)
+  .map((desk, index) => {
+    const profile = npcProfiles[index % npcProfiles.length];
+    return {
+      id: `npc-${desk.row}-${desk.col}`,
+      desk,
+      name: profile.name,
+      offense: profile.offense,
+      color: profile.color,
+      width: 30,
+      height: 42,
+      x: desk.x + desk.width / 2 - 15,
+      y: desk.y + desk.height + 4,
+      headRadius: 8,
+    };
+  });
+
+const dialoguePrompts = [
+  { key: 'hi', label: 'Hi' },
+  { key: 'name', label: "What's your name?" },
+  { key: 'offense', label: 'What did you do?' },
+  { key: 'time', label: 'How long have you been here?' },
+  { key: 'bye', label: 'See you later.' },
+];
+
 const keys = new Set();
 let lastFrameTime = performance.now();
 let detentionReleased = false;
@@ -82,6 +124,7 @@ let pausedAccumulatedMs = 0;
 let teacherWarningStartedAt = null;
 let teacherAskedToSit = false;
 let timerPausedByTeacher = false;
+let activeNpcId = null;
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(value, max));
@@ -105,13 +148,16 @@ function formatRemaining(ms) {
   return `${minutes}:${seconds}`;
 }
 
+function distanceBetween(x1, y1, x2, y2) {
+  return Math.hypot(x1 - x2, y1 - y2);
+}
 
 function distanceToPlayerDesk() {
   const playerCenterX = player.x + player.width / 2;
   const playerCenterY = player.y + player.height / 2;
   const deskCenterX = playerDesk.x + playerDesk.width / 2;
   const deskCenterY = playerDesk.y + playerDesk.height / 2;
-  return Math.hypot(playerCenterX - deskCenterX, playerCenterY - deskCenterY);
+  return distanceBetween(playerCenterX, playerCenterY, deskCenterX, deskCenterY);
 }
 
 function distanceToDoor() {
@@ -119,7 +165,71 @@ function distanceToDoor() {
   const playerCenterY = player.y + player.height / 2;
   const doorCenterX = door.x + door.width / 2;
   const doorCenterY = door.y + door.height / 2;
-  return Math.hypot(playerCenterX - doorCenterX, playerCenterY - doorCenterY);
+  return distanceBetween(playerCenterX, playerCenterY, doorCenterX, doorCenterY);
+}
+
+function getNpcHeadPosition(npc) {
+  return {
+    x: npc.x + npc.width / 2,
+    y: npc.y + 9,
+  };
+}
+
+function isDeskNeighborWhenSeated(npcDesk) {
+  return npcDesk.row === playerDesk.row && Math.abs(npcDesk.col - playerDesk.col) === 1;
+}
+
+function canTalkToNpc(npc) {
+  const head = getNpcHeadPosition(npc);
+  const playerCenterX = player.x + player.width / 2;
+  const playerCenterY = player.y + player.height / 2;
+
+  if (player.seated) {
+    return isDeskNeighborWhenSeated(npc.desk);
+  }
+
+  const standingRange = 120;
+  return distanceBetween(playerCenterX, playerCenterY, head.x, head.y) <= standingRange;
+}
+
+function getNpcReply(npc, promptKey) {
+  const replies = {
+    hi: `${npc.name}: Hey. Try not to make eye contact with the teacher.`,
+    name: `${npc.name}: I'm ${npc.name}.`,
+    offense: `${npc.name}: ${npc.offense}. Worth it though.`,
+    time: `${npc.name}: Feels like forever... but probably like 20 minutes.`,
+    bye: `${npc.name}: Later. Pretend we're studying if the teacher looks over.`,
+  };
+
+  return replies[promptKey] || `${npc.name} shrugs.`;
+}
+
+function clearDialogueOptions() {
+  dialogueOptions.replaceChildren();
+}
+
+function showDialogueOptionsForNpc(npc) {
+  clearDialogueOptions();
+  activeNpcId = npc.id;
+
+  for (const prompt of dialoguePrompts) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'dialogue-option-btn';
+    button.textContent = prompt.label;
+    button.addEventListener('click', () => {
+      if (activeNpcId !== npc.id) {
+        return;
+      }
+      setDialogue(getNpcReply(npc, prompt.key));
+    });
+    dialogueOptions.appendChild(button);
+  }
+}
+
+function closeNpcDialogue() {
+  activeNpcId = null;
+  clearDialogueOptions();
 }
 
 function intersectsDesk(x, y) {
@@ -155,10 +265,11 @@ function sitAtDesk() {
     }
     statusText.textContent = 'Status: Timer resumed. Stay seated in detention.';
     setDialogue('Teacher: Good. Stay in your seat.');
+    closeNpcDialogue();
     return;
   }
 
-  setDialogue('You sit back down at your desk.');
+  setDialogue('You sit back down at your desk. Click nearby heads to talk.');
 }
 
 function standUpFromDesk() {
@@ -168,7 +279,8 @@ function standUpFromDesk() {
   player.y = standY;
   teacherWarningStartedAt = Date.now();
   teacherAskedToSit = false;
-  setDialogue('You stand up.');
+  closeNpcDialogue();
+  setDialogue('You stand up. Move closer to other desks to talk.');
 }
 
 function handleTeacherBehavior(nowMs) {
@@ -223,6 +335,33 @@ function handleDoorInteraction() {
   detentionReleased = true;
   statusText.textContent = 'Status: Detention complete. You are free to leave!';
   setDialogue('You leave detention. You can finally hang out with your friends.');
+}
+
+function tryTalkToNpcAt(canvasX, canvasY) {
+  for (const npc of npcs) {
+    const head = getNpcHeadPosition(npc);
+    const clickedHead = distanceBetween(canvasX, canvasY, head.x, head.y) <= npc.headRadius + 4;
+
+    if (!clickedHead) {
+      continue;
+    }
+
+    if (!canTalkToNpc(npc)) {
+      if (player.seated) {
+        setDialogue('You can only talk to the classmate directly next to your desk while seated.');
+      } else {
+        setDialogue('Move closer before trying to talk to that student.');
+      }
+      closeNpcDialogue();
+      return;
+    }
+
+    setDialogue(`${npc.name} looks over. What do you want to say?`);
+    showDialogueOptionsForNpc(npc);
+    return;
+  }
+
+  closeNpcDialogue();
 }
 
 function moveWithCollision(deltaX, deltaY) {
@@ -324,6 +463,30 @@ function drawTeacher() {
   ctx.fillRect(teacher.x + teacher.width / 2 - 2, teacher.y + 8, 4, 4);
 }
 
+function drawNpc(npc) {
+  const isActive = npc.id === activeNpcId;
+
+  ctx.fillStyle = npc.color;
+  ctx.fillRect(npc.x, npc.y, npc.width, npc.height);
+
+  const head = getNpcHeadPosition(npc);
+  ctx.fillStyle = '#f2c7a0';
+  ctx.beginPath();
+  ctx.arc(head.x, head.y, npc.headRadius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#1f1f1f';
+  ctx.fillRect(head.x - 2, head.y - 1, 4, 3);
+
+  if (isActive) {
+    ctx.strokeStyle = '#f6df88';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(head.x, head.y, npc.headRadius + 5, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
 function drawPlayer() {
   const bob = player.seated ? 0 : Math.sin(performance.now() / 100) * 1.5;
 
@@ -355,6 +518,9 @@ function drawPlayer() {
 function render() {
   drawRoom();
   drawTeacher();
+  for (const npc of npcs) {
+    drawNpc(npc);
+  }
   drawPlayer();
 }
 
@@ -402,5 +568,15 @@ window.addEventListener('keyup', (event) => {
   keys.delete(event.code);
 });
 
-setDialogue('It\'s Friday. You start in your seat. Press Space to stand up or sit down.');
+canvas.addEventListener('click', (event) => {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const canvasX = (event.clientX - rect.left) * scaleX;
+  const canvasY = (event.clientY - rect.top) * scaleY;
+
+  tryTalkToNpcAt(canvasX, canvasY);
+});
+
+setDialogue('Friday detention. Click heads to talk. While seated you can only chat with neighbors.');
 requestAnimationFrame(tick);
