@@ -75,37 +75,109 @@ const teacher = {
   y: teacherDesk.y + teacherDesk.height + 2,
 };
 
-const npcProfiles = [
-  { name: 'Mia', offense: 'Passing notes all class', color: '#d97fa8' },
-  { name: 'Noah', offense: 'Setting 14 alarms to ring in math', color: '#83a4ff' },
-  { name: 'Zoe', offense: 'Launching a paper airplane at the principal', color: '#8fd8b8' },
-  { name: 'Jamal', offense: 'Sneaking chips into chemistry', color: '#ffb880' },
-  { name: 'Lena', offense: 'Rewriting the class anthem as a rap battle', color: '#f3d37f' },
-  { name: 'Ivan', offense: 'Hacking the bell to dismiss early', color: '#91d6ff' },
-  { name: 'Ruby', offense: 'Putting glitter in the class fan', color: '#e0a1ff' },
-  { name: 'Eli', offense: 'Trading fake hall passes', color: '#95e388' },
-  { name: 'Kai', offense: 'Bringing a pet frog to history', color: '#ff9f9f' },
-  { name: 'Nora', offense: 'Drawing moustaches on textbook photos', color: '#9cd8d0' },
-  { name: 'Owen', offense: 'Starting a pencil drumming battle', color: '#c8b6ff' },
+const npcNames = [
+  'Mia',
+  'Noah',
+  'Zoe',
+  'Jamal',
+  'Lena',
+  'Ivan',
+  'Ruby',
+  'Eli',
+  'Kai',
+  'Nora',
+  'Owen',
+  'Avery',
+  'Riley',
+  'Sasha',
+  'Dante',
+  'Priya',
+  'Theo',
+  'Camila',
+  'Mateo',
+  'Skye',
+  'Jun',
+  'Harper',
 ];
 
-const npcs = desks
-  .filter((desk) => desk !== playerDesk)
-  .map((desk, index) => {
-    const profile = npcProfiles[index % npcProfiles.length];
-    return {
-      id: `npc-${desk.row}-${desk.col}`,
-      desk,
-      name: profile.name,
-      offense: profile.offense,
-      color: profile.color,
-      width: 30,
-      height: 42,
-      x: desk.x + desk.width / 2 - 15,
-      y: desk.y + desk.height + 4,
-      headRadius: 8,
-    };
-  });
+const npcOffenses = [
+  'Passing notes all class',
+  'Setting 14 alarms to ring in math',
+  'Launching a paper airplane at the principal',
+  'Sneaking chips into chemistry',
+  'Rewriting the class anthem as a rap battle',
+  'Hacking the bell to dismiss early',
+  'Putting glitter in the class fan',
+  'Trading fake hall passes',
+  'Bringing a pet frog to history',
+  'Drawing moustaches on textbook photos',
+  'Starting a pencil drumming battle',
+  'Hosting an underground eraser racing league',
+  'Renaming all the classroom calculators',
+  'Projecting cat memes during homeroom announcements',
+  'Building a domino chain through the science lab',
+  'Replacing the quiz answer key with song lyrics',
+  'Convincing half the class it was pajama day',
+  'Smuggling a mini disco ball into study hall',
+  'Launching a rubber band into the trophy case',
+  'Running a black-market sticker shop',
+  'Turning the class slideshow into a cooking show',
+  'Teaching everyone to yodel before attendance',
+];
+
+const npcColors = [
+  '#d97fa8',
+  '#83a4ff',
+  '#8fd8b8',
+  '#ffb880',
+  '#f3d37f',
+  '#91d6ff',
+  '#e0a1ff',
+  '#95e388',
+  '#ff9f9f',
+  '#9cd8d0',
+  '#c8b6ff',
+  '#7dcfb6',
+  '#f4a261',
+  '#a8dadc',
+  '#b8c0ff',
+  '#ffafcc',
+  '#ffd166',
+  '#90be6d',
+  '#6ec5ff',
+  '#f4978e',
+  '#bde0fe',
+  '#caffbf',
+];
+
+function shuffled(array) {
+  const copy = [...array];
+  for (let index = copy.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
+  }
+  return copy;
+}
+
+const npcDesks = desks.filter((desk) => desk !== playerDesk);
+const shuffledNames = shuffled(npcNames);
+const shuffledOffenses = shuffled(npcOffenses);
+const shuffledColors = shuffled(npcColors);
+
+const npcs = npcDesks.map((desk, index) => {
+  return {
+    id: `npc-${desk.row}-${desk.col}`,
+    desk,
+    name: shuffledNames[index % shuffledNames.length],
+    offense: shuffledOffenses[index % shuffledOffenses.length],
+    color: shuffledColors[index % shuffledColors.length],
+    width: 30,
+    height: 42,
+    x: desk.x + desk.width / 2 - 15,
+    y: desk.y + desk.height + 4,
+    headRadius: 8,
+  };
+});
 
 const dialoguePrompts = [
   { key: 'hi', label: 'Hi' },
