@@ -77,3 +77,24 @@ body {
   font-size: 1rem;
   line-height: 1.4;
 }
+
+.dialogue-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+}
+
+.dialogue-option-btn {
+  background: #4e3a61;
+  color: var(--text);
+  border: 1px solid #6d5690;
+  border-radius: 6px;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.dialogue-option-btn:hover {
+  background: #604678;
+}
