@@ -228,5 +228,5 @@ window.addEventListener('keyup', (event) => {
   keys.delete(event.code);
 });
 
-setDialogue('A long hour waits ahead. Walk with arrows and check the door with Space.');
+setDialogue("It's Friday. You were gonna hang out with your friends but you got a detention for talking in math class.");
 requestAnimationFrame(tick);
