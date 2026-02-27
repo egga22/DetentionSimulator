@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Detention Simulator</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="game-shell">
+      <header class="hud">
+        <h1>Detention Simulator</h1>
+        <div class="hud-row">
+          <p id="timeRemaining">Time remaining: 60:00</p>
+          <p id="statusText">Status: You are in detention.</p>
+        </div>
+      </header>
+
+      <section class="game-wrapper">
+        <canvas id="gameCanvas" width="960" height="540" aria-label="Detention room"></canvas>
+
+        <aside class="dialogue-box" id="dialogueBox" aria-live="polite">
+          <p id="dialogueText">Use arrow keys to move. Press Space near the door.</p>
+        </aside>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>

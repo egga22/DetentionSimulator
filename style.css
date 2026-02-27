@@ -1,0 +1,79 @@
+:root {
+  color-scheme: dark;
+  --bg: #18121f;
+  --panel: #2b1f33;
+  --panel-light: #3b2f45;
+  --text: #f5ebd7;
+  --accent: #9f7aea;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #30203c, var(--bg));
+  color: var(--text);
+  font-family: "Trebuchet MS", "Verdana", sans-serif;
+}
+
+.game-shell {
+  width: min(1100px, 96vw);
+  margin: 1.5rem auto;
+  background: rgba(21, 14, 29, 0.85);
+  border: 3px solid var(--panel-light);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+}
+
+.hud {
+  border: 2px solid var(--panel-light);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  background: var(--panel);
+}
+
+.hud h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.5rem;
+  letter-spacing: 0.03em;
+}
+
+.hud-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.hud p {
+  margin: 0;
+}
+
+.game-wrapper {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+#gameCanvas {
+  width: 100%;
+  max-height: 72vh;
+  border: 3px solid #5a4763;
+  border-radius: 8px;
+  image-rendering: pixelated;
+  background: #26202f;
+}
+
+.dialogue-box {
+  border: 2px solid var(--panel-light);
+  border-radius: 8px;
+  min-height: 80px;
+  padding: 0.8rem;
+  background: var(--panel);
+  font-size: 1rem;
+  line-height: 1.4;
+}
