@@ -4,8 +4,8 @@ A lightweight browser game prototype with a top-down detention room.
 
 ## Current prototype features
 - Move a player sprite with arrow keys.
-- Press `Space` near the door to interact.
-- A one-hour detention timer gates door access.
+- Press `Space` to stand up/sit down, and to interact with the door.
+- A one-hour detention timer gates door access (teacher can pause it if you wander).
 - RPG-style HUD + dialogue panel.
 
 ## Run locally
@@ -21,5 +21,5 @@ Then visit `http://localhost:8080`.
 
 ## Next steps
 - Swap placeholder room/player art for your real assets.
-- Add collision layers and interactable props.
+- Add more interactable props and consequences for rule-breaking.
 - Expand dialogue + branching events for the gameplay loop.
