@@ -6,7 +6,7 @@ const timeRemainingLabel = document.getElementById('timeRemaining');
 const statusText = document.getElementById('statusText');
 
 const detentionDurationMs = 60 * 60 * 1000;
-const detentionStartedAt = Date.now();
+let detentionStartedAt = null;
 
 const room = {
   width: canvas.width,
@@ -209,6 +209,17 @@ let timerPausedByTeacher = false;
 let activeNpcId = null;
 let talkingToTeacher = false;
 let announcedDismissal = false;
+let extraDetentionMs = 0;
+let socializingIncidents = 0;
+let introCutsceneActive = true;
+let introCutsceneIndex = 0;
+
+const introCutsceneLines = [
+  'Principal: You turned last period into a snack-smuggling operation and disrupted class.',
+  'You: It was just one tiny chip exchange ring...',
+  'Principal: One hour of Friday detention. No excuses, no socializing.',
+  'Teacher: Take your seat. The timer starts now. Keep to yourself.',
+];
 
 const npcReplyLines = {
   hi: [
@@ -250,8 +261,11 @@ function setDialogue(message) {
 }
 
 function getMsRemaining() {
+  if (detentionStartedAt === null) {
+    return detentionDurationMs + extraDetentionMs;
+  }
   const elapsed = Date.now() - detentionStartedAt - pausedAccumulatedMs;
-  return Math.max(0, detentionDurationMs - elapsed);
+  return Math.max(0, detentionDurationMs + extraDetentionMs - elapsed);
 }
 
 function formatRemaining(ms) {
@@ -322,6 +336,68 @@ function getNpcReply(npc, promptKey) {
 
 function clearDialogueOptions() {
   dialogueOptions.replaceChildren();
+}
+
+function showIntroCutsceneStep() {
+  clearDialogueOptions();
+  setDialogue(introCutsceneLines[introCutsceneIndex]);
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'dialogue-option-btn';
+  button.textContent = introCutsceneIndex === introCutsceneLines.length - 1 ? 'Start detention' : 'Continue';
+  button.addEventListener('click', advanceIntroCutscene);
+  dialogueOptions.appendChild(button);
+}
+
+function advanceIntroCutscene() {
+  if (!introCutsceneActive) {
+    return;
+  }
+
+  if (introCutsceneIndex < introCutsceneLines.length - 1) {
+    introCutsceneIndex += 1;
+    showIntroCutsceneStep();
+    return;
+  }
+
+  introCutsceneActive = false;
+  detentionStartedAt = Date.now();
+  statusText.textContent = 'Status: You are in detention. Keep your head down and serve your time.';
+  closeNpcDialogue();
+  setDialogue('Detention has started. Stay seated or stand with Space. Talking will get you in trouble.');
+}
+
+function punishForSocializing() {
+  socializingIncidents += 1;
+
+  if (socializingIncidents === 1) {
+    setDialogue('Teacher: Detention is not social hour. Eyes forward, no chatting.');
+    closeNpcDialogue();
+    return false;
+  }
+
+  if (socializingIncidents === 2) {
+    setDialogue('Teacher: Final warning. Talk again and I add time.');
+    closeNpcDialogue();
+    return false;
+  }
+
+  const addedMs = 5 * 60 * 1000;
+  extraDetentionMs += addedMs;
+
+  player.seated = true;
+  player.facing = 'up';
+  player.x = playerDesk.x + playerDesk.width / 2 - player.width / 2;
+  player.y = playerDesk.y + playerDesk.height + 14;
+  teacherWarningStartedAt = null;
+  teacherAskedToSit = false;
+  keys.clear();
+
+  statusText.textContent = `Status: Punished for socializing (+${Math.round(addedMs / 60000)} min).`;
+  setDialogue('Teacher: I warned you. Five extra minutes. Sit silently, now.');
+  closeNpcDialogue();
+  return false;
 }
 
 function showDialogueOptionsForNpc(npc) {
@@ -487,6 +563,11 @@ function handleDoorInteraction() {
 }
 
 function tryTalkToNpcAt(canvasX, canvasY) {
+  if (introCutsceneActive) {
+    advanceIntroCutscene();
+    return;
+  }
+
   const teacherHeadX = teacher.x + teacher.width / 2;
   const teacherHeadY = teacher.y + 10;
   const clickedTeacher = distanceBetween(canvasX, canvasY, teacherHeadX, teacherHeadY) <= 16;
@@ -523,6 +604,10 @@ function tryTalkToNpcAt(canvasX, canvasY) {
         setDialogue('Move closer before trying to talk to that student.');
       }
       closeNpcDialogue();
+      return;
+    }
+
+    if (!punishForSocializing()) {
       return;
     }
 
@@ -743,7 +828,7 @@ function tick(now) {
   const pausedText = timerPausedByTeacher ? ' (Paused)' : '';
   timeRemainingLabel.textContent = `Time remaining: ${formatRemaining(remaining)}${pausedText}`;
 
-  if (remaining <= 0 && !detentionReleased) {
+  if (remaining <= 0 && !detentionReleased && !introCutsceneActive) {
     statusText.textContent = 'Status: Time served. Head to the door and press Space.';
   }
 
@@ -763,6 +848,12 @@ window.addEventListener('keydown', (event) => {
   }
 
   if (event.code === 'Space') {
+    if (introCutsceneActive) {
+      advanceIntroCutscene();
+      event.preventDefault();
+      return;
+    }
+
     const now = performance.now();
     if (now - lastSpacePress > 200) {
       handleDoorInteraction();
@@ -777,6 +868,11 @@ window.addEventListener('keyup', (event) => {
 });
 
 canvas.addEventListener('click', (event) => {
+  if (introCutsceneActive) {
+    advanceIntroCutscene();
+    return;
+  }
+
   const rect = canvas.getBoundingClientRect();
   const scaleX = canvas.width / rect.width;
   const scaleY = canvas.height / rect.height;
@@ -787,4 +883,6 @@ canvas.addEventListener('click', (event) => {
 });
 
 setDialogue('Friday detention. Click heads to talk. While seated you can only chat with neighbors.');
+statusText.textContent = 'Status: Waiting for detention assignment...';
+showIntroCutsceneStep();
 requestAnimationFrame(tick);
