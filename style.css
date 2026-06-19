@@ -60,12 +60,18 @@ body {
 }
 
 #gameCanvas {
+  display: block;
   width: 100%;
   max-height: 72vh;
   border: 3px solid #5a4763;
   border-radius: 8px;
   image-rendering: pixelated;
   background: #26202f;
+}
+
+#gameCanvas:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 4px;
 }
 
 .dialogue-box {
@@ -95,6 +101,9 @@ body {
   font-size: 0.9rem;
 }
 
-.dialogue-option-btn:hover {
+.dialogue-option-btn:hover,
+.dialogue-option-btn:focus-visible {
   background: #604678;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }

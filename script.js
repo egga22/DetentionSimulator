@@ -368,19 +368,23 @@ function advanceIntroCutscene() {
   setDialogue('Detention has started. Stay seated or stand with Space. Talking will get you in trouble.');
 }
 
-function punishForSocializing() {
+function getSocializingConsequence() {
   socializingIncidents += 1;
 
   if (socializingIncidents === 1) {
-    setDialogue('Teacher: Detention is not social hour. Eyes forward, no chatting.');
-    closeNpcDialogue();
-    return false;
+    statusText.textContent = 'Status: Warning 1/2 for socializing.';
+    return {
+      canContinue: true,
+      warning: 'Teacher: Detention is not social hour. Keep it brief.',
+    };
   }
 
   if (socializingIncidents === 2) {
-    setDialogue('Teacher: Final warning. Talk again and I add time.');
-    closeNpcDialogue();
-    return false;
+    statusText.textContent = 'Status: Final warning for socializing.';
+    return {
+      canContinue: true,
+      warning: 'Teacher: Final warning. Wrap up the chat or I add time.',
+    };
   }
 
   const addedMs = 5 * 60 * 1000;
@@ -397,7 +401,7 @@ function punishForSocializing() {
   statusText.textContent = `Status: Punished for socializing (+${Math.round(addedMs / 60000)} min).`;
   setDialogue('Teacher: I warned you. Five extra minutes. Sit silently, now.');
   closeNpcDialogue();
-  return false;
+  return { canContinue: false };
 }
 
 function showDialogueOptionsForNpc(npc) {
@@ -607,11 +611,13 @@ function tryTalkToNpcAt(canvasX, canvasY) {
       return;
     }
 
-    if (!punishForSocializing()) {
+    const consequence = getSocializingConsequence();
+    if (!consequence.canContinue) {
       return;
     }
 
-    setDialogue(`${npc.name} looks over. What do you want to say?`);
+    const warningPrefix = consequence.warning ? `${consequence.warning} ` : '';
+    setDialogue(`${warningPrefix}${npc.name} looks over. What do you want to say?`);
     showDialogueOptionsForNpc(npc);
     return;
   }
@@ -882,7 +888,7 @@ canvas.addEventListener('click', (event) => {
   tryTalkToNpcAt(canvasX, canvasY);
 });
 
-setDialogue('Friday detention. Click heads to talk. While seated you can only chat with neighbors.');
+setDialogue('Friday detention. Click heads to talk, click the teacher for help, or press Space to continue.');
 statusText.textContent = 'Status: Waiting for detention assignment...';
 showIntroCutsceneStep();
 requestAnimationFrame(tick);
